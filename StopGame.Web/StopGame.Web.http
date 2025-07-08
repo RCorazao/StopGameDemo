@@ -1,0 +1,6 @@
+@StopGame.Web_HostAddress = http://localhost:5077
+
+GET {{StopGame.Web_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

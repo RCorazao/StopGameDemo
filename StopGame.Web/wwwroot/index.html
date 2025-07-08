@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stop Game - Test Client</title>
+    <meta charset="utf-8" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        input, button, select {
+            padding: 8px 12px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .messages {
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #f8f9fa;
+        }
+        .message {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .message.system {
+            background-color: #e2e3e5;
+            color: #383d41;
+        }
+        .message.chat {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .room-info {
+            background-color: #e7f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .players-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .player {
+            background-color: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+        .player.host {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+        }
+        .topics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .topic-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Stop Game - Test Client</h1>
+        
+        <div class="section">
+            <h3>Connection Status</h3>
+            <div id="connectionStatus" class="status disconnected">Disconnected</div>
+            <button id="connectBtn" onclick="connect()">Connect</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+        </div>
+
+        <div class="section">
+            <h3>Room Management</h3>
+            <div>
+                <h4>Create Room</h4>
+                <input type="text" id="hostName" placeholder="Your name" value="Host Player">
+                <button onclick="createRoom()" id="createRoomBtn" disabled>Create Room</button>
+            </div>
+            <div>
+                <h4>Join Room</h4>
+                <input type="text" id="roomCode" placeholder="Room code">
+                <input type="text" id="playerName" placeholder="Your name" value="Player">
+                <button onclick="joinRoom()" id="joinRoomBtn" disabled>Join Room</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Game Controls</h3>
+            <button onclick="startRound()" id="startRoundBtn" disabled>Start Round</button>
+            <button onclick="stopRound()" id="stopBtn" disabled>Stop Round</button>
+            <button onclick="leaveRoom()" id="leaveRoomBtn" disabled>Leave Room</button>
+        </div>
+
+        <div class="section">
+            <h3>Submit Answers</h3>
+            <div id="answersSection" style="display: none;">
+                <div id="topicsGrid" class="topics-grid"></div>
+                <button onclick="submitAnswers()" id="submitAnswersBtn" disabled>Submit Answers</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Chat</h3>
+            <div id="messages" class="messages"></div>
+            <div>
+                <input type="text" id="messageInput" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendMessage()">
+                <button onclick="sendMessage()" id="sendMessageBtn" disabled>Send</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Room Information</h3>
+            <div id="roomInfo" class="room-info" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@microsoft/signalr@latest/dist/browser/signalr.js"></script>
+    <script>
+        let connection = null;
+        let currentRoom = null;
+        let isConnected = false;
+
+        function updateConnectionStatus(connected) {
+            isConnected = connected;
+            const statusDiv = document.getElementById('connectionStatus');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const createRoomBtn = document.getElementById('createRoomBtn');
+            const joinRoomBtn = document.getElementById('joinRoomBtn');
+            const sendMessageBtn = document.getElementById('sendMessageBtn');
+
+            if (connected) {
+                statusDiv.textContent = 'Connected';
+                statusDiv.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                createRoomBtn.disabled = false;
+                joinRoomBtn.disabled = false;
+                sendMessageBtn.disabled = false;
+            } else {
+                statusDiv.textContent = 'Disconnected';
+                statusDiv.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                createRoomBtn.disabled = true;
+                joinRoomBtn.disabled = true;
+                sendMessageBtn.disabled = true;
+            }
+        }
+
+        function addMessage(type, content) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${content}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function updateRoomInfo(room) {
+            currentRoom = room;
+            const roomInfoDiv = document.getElementById('roomInfo');
+            const startRoundBtn = document.getElementById('startRoundBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const leaveRoomBtn = document.getElementById('leaveRoomBtn');
+            const answersSection = document.getElementById('answersSection');
+
+            if (room) {
+                roomInfoDiv.style.display = 'block';
+                leaveRoomBtn.disabled = false;
+
+                const currentPlayer = room.players.find(p => p.connectionId === connection.connectionId);
+                const isHost = currentPlayer && currentPlayer.isHost;
+
+                roomInfoDiv.innerHTML = `
+                    <h4>Room: ${room.code}</h4>
+                    <p><strong>State:</strong> ${room.state}</p>
+                    <p><strong>Players:</strong></p>
+                    <div class="players-list">
+                        ${room.players.map(p => `
+                            <div class="player ${p.isHost ? 'host' : ''}">
+                                ${p.name} ${p.isHost ? '(Host)' : ''} - Score: ${p.score}
+                            </div>
+                        `).join('')}
+                    </div>
+                    ${room.currentRound ? `
+                        <p><strong>Current Round:</strong> Letter ${room.currentRound.letter}</p>
+                        <p><strong>Topics:</strong> ${room.topics.map(t => t.name).join(', ')}</p>
+                    ` : ''}
+                `;
+
+                startRoundBtn.disabled = !isHost || room.state !== 0;
+                stopBtn.disabled = room.state !== 1;
+
+                if (room.state === 1 && room.currentRound) {
+                    showAnswerInputs(room.topics, room.currentRound.letter);
+                } else {
+                    answersSection.style.display = 'none';
+                }
+            } else {
+                roomInfoDiv.style.display = 'none';
+                startRoundBtn.disabled = true;
+                stopBtn.disabled = true;
+                leaveRoomBtn.disabled = true;
+                answersSection.style.display = 'none';
+            }
+        }
+
+        function showAnswerInputs(topics, letter) {
+            const answersSection = document.getElementById('answersSection');
+            const topicsGrid = document.getElementById('topicsGrid');
+            const submitBtn = document.getElementById('submitAnswersBtn');
+
+            topicsGrid.innerHTML = topics.map(topic => `
+                <div class="topic-input">
+                    <label>${topic.name} (${letter}):</label>
+                    <input type="text" id="answer_${topic.name}" placeholder="Enter word starting with ${letter}">
+                </div>
+            `).join('');
+
+            answersSection.style.display = 'block';
+            submitBtn.disabled = false;
+        }
+
+        async function connect() {
+            try {
+                connection = new signalR.HubConnectionBuilder()
+                    .withUrl("/gameHub")
+                    .build();
+
+                // Set up event handlers
+                connection.on("Connected", (connectionId) => {
+                    addMessage('system', `Connected with ID: ${connectionId}`);
+                });
+
+                connection.on("RoomCreated", (room) => {
+                    addMessage('system', `Room created: ${room.code}`);
+                    updateRoomInfo(room);
+                });
+
+                connection.on("RoomJoined", (room) => {
+                    addMessage('system', `Joined room: ${room.code}`);
+                    updateRoomInfo(room);
+                });
+
+                connection.on("RoomUpdated", (room) => {
+                    updateRoomInfo(room);
+                });
+
+                connection.on("RoundStarted", (room) => {
+                    addMessage('system', `Round started! Letter: ${room.currentRound.letter}`);
+                    updateRoomInfo(room);
+                });
+
+                connection.on("RoundStopped", (room) => {
+                    addMessage('system', 'Round stopped! Time to vote!');
+                    updateRoomInfo(room);
+                });
+
+                connection.on("ChatMessage", (data) => {
+                    addMessage('chat', `Player ${data.playerId}: ${data.message}`);
+                });
+
+                connection.on("Error", (error) => {
+                    addMessage('error', `Error: ${error}`);
+                });
+
+                connection.on("PlayerJoined", (data) => {
+                    addMessage('system', `${data.playerName} joined the room`);
+                });
+
+                connection.on("PlayerLeft", (data) => {
+                    addMessage('system', `${data.playerName} left the room`);
+                });
+
+                connection.on("AnswersSubmitted", (data) => {
+                    addMessage('system', `${data.playerName} submitted answers`);
+                });
+
+                await connection.start();
+                updateConnectionStatus(true);
+                addMessage('system', 'Connected to game server');
+            } catch (err) {
+                addMessage('error', `Connection failed: ${err}`);
+            }
+        }
+
+        async function disconnect() {
+            if (connection) {
+                await connection.stop();
+                updateConnectionStatus(false);
+                updateRoomInfo(null);
+                addMessage('system', 'Disconnected from server');
+            }
+        }
+
+        async function createRoom() {
+            if (!isConnected) return;
+            
+            const hostName = document.getElementById('hostName').value;
+            if (!hostName) {
+                addMessage('error', 'Please enter your name');
+                return;
+            }
+
+            try {
+                await connection.invoke("CreateRoom", {
+                    hostName: hostName,
+                    customTopics: [],
+                    useDefaultTopics: true,
+                    maxPlayers: 6,
+                    roundDurationSeconds: 60,
+                    votingDurationSeconds: 30,
+                    maxRounds: 5
+                });
+            } catch (err) {
+                addMessage('error', `Failed to create room: ${err}`);
+            }
+        }
+
+        async function joinRoom() {
+            if (!isConnected) return;
+            
+            const roomCode = document.getElementById('roomCode').value;
+            const playerName = document.getElementById('playerName').value;
+            
+            if (!roomCode || !playerName) {
+                addMessage('error', 'Please enter room code and your name');
+                return;
+            }
+
+            try {
+                await connection.invoke("JoinRoom", {
+                    roomCode: roomCode,
+                    playerName: playerName
+                });
+            } catch (err) {
+                addMessage('error', `Failed to join room: ${err}`);
+            }
+        }
+
+        async function startRound() {
+            if (!isConnected || !currentRoom) return;
+            
+            try {
+                await connection.invoke("StartRound");
+            } catch (err) {
+                addMessage('error', `Failed to start round: ${err}`);
+            }
+        }
+
+        async function stopRound() {
+            if (!isConnected || !currentRoom) return;
+            
+            try {
+                await connection.invoke("Stop");
+            } catch (err) {
+                addMessage('error', `Failed to stop round: ${err}`);
+            }
+        }
+
+        async function submitAnswers() {
+            if (!isConnected || !currentRoom || !currentRoom.currentRound) return;
+            
+            const answers = {};
+            currentRoom.topics.forEach(topic => {
+                const input = document.getElementById(`answer_${topic.name}`);
+                if (input && input.value.trim()) {
+                    answers[topic.name] = input.value.trim();
+                }
+            });
+
+            try {
+                await connection.invoke("SubmitAnswers", { answers: answers });
+                addMessage('system', 'Answers submitted!');
+            } catch (err) {
+                addMessage('error', `Failed to submit answers: ${err}`);
+            }
+        }
+
+        async function sendMessage() {
+            if (!isConnected) return;
+            
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message) return;
+
+            try {
+                await connection.invoke("SendChat", message);
+                messageInput.value = '';
+            } catch (err) {
+                addMessage('error', `Failed to send message: ${err}`);
+            }
+        }
+
+        async function leaveRoom() {
+            if (!isConnected) return;
+            
+            try {
+                await connection.invoke("LeaveRoom");
+                updateRoomInfo(null);
+                addMessage('system', 'Left the room');
+            } catch (err) {
+                addMessage('error', `Failed to leave room: ${err}`);
+            }
+        }
+
+        // Initialize
+        updateConnectionStatus(false);
+    </script>
+</body>
+</html>
