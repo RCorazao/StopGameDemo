@@ -264,6 +264,43 @@ public class RoomService : IRoomService
         return MapToDto(updatedRoom);
     }
 
+    public async Task<Dictionary<string, List<SubmissionDto>>> GetVotingDataAsync(string roomCode)
+    {
+        var room = await _roomRepository.GetByCodeAsync(roomCode);
+        if (room == null)
+            throw new InvalidOperationException("Room not found");
+
+        var currentRound = room.GetCurrentRound();
+        if (currentRound == null)
+            throw new InvalidOperationException("No current round");
+
+        var votingData = new Dictionary<string, List<SubmissionDto>>();
+        
+        foreach (var topic in room.Topics)
+        {
+            var topicSubmissions = currentRound.GetSubmissionsForTopic(topic.Name)
+                .Select(s => 
+                {
+                    var player = room.GetPlayer(s.PlayerId);
+                    var submission = MapSubmissionToDto(s, player?.Name ?? "");
+                    
+                    // Add vote counts
+                    var votes = currentRound.Votes.Where(v => 
+                        v.AnswerOwnerId == s.PlayerId && v.TopicName == topic.Name).ToList();
+                    submission.VotesValid = votes.Count(v => v.IsValid);
+                    submission.VotesInvalid = votes.Count(v => !v.IsValid);
+                    submission.IsValid = submission.VotesValid >= submission.VotesInvalid;
+                    
+                    return submission;
+                })
+                .ToList();
+            
+            votingData[topic.Name] = topicSubmissions;
+        }
+        
+        return votingData;
+    }
+
     public async Task<List<RoomDto>> GetActiveRoomsAsync()
     {
         var rooms = await _roomRepository.GetActiveRoomsAsync();
@@ -302,14 +339,14 @@ public class RoomService : IRoomService
             Topics = room.Topics.Select(MapTopicToDto).ToList(),
             Players = room.Players.Select(p => MapPlayerToDto(p, room.IsHost(p.Id))).ToList(),
             State = room.State,
-            Rounds = room.Rounds.Select(MapRoundToDto).ToList(),
+            Rounds = room.Rounds.Select(r => MapRoundToDto(r, room)).ToList(),
             CreatedAt = room.CreatedAt,
             ExpiresAt = room.ExpiresAt,
             MaxPlayers = room.MaxPlayers,
             RoundDurationSeconds = room.RoundDurationSeconds,
             VotingDurationSeconds = room.VotingDurationSeconds,
             MaxRounds = room.MaxRounds,
-            CurrentRound = room.GetCurrentRound() != null ? MapRoundToDto(room.GetCurrentRound()!) : null
+            CurrentRound = room.GetCurrentRound() != null ? MapRoundToDto(room.GetCurrentRound()!, room) : null
         };
     }
 
@@ -339,15 +376,21 @@ public class RoomService : IRoomService
         };
     }
 
-    private static RoundDto MapRoundToDto(Round round)
+    private static RoundDto MapRoundToDto(Round round, Room? room = null)
     {
+        var submissions = round.Submissions.Select(s => 
+        {
+            var playerName = room?.GetPlayer(s.PlayerId)?.Name ?? "";
+            return MapSubmissionToDto(s, playerName);
+        }).ToList();
+
         return new RoundDto
         {
             Id = round.Id,
             Letter = round.Letter,
             StartedAt = round.StartedAt,
             EndedAt = round.EndedAt,
-            Submissions = round.Submissions.Select(MapSubmissionToDto).ToList(),
+            Submissions = submissions,
             Votes = round.Votes.Select(MapVoteToDto).ToList(),
             IsActive = round.IsActive,
             TimeRemainingSeconds = round.IsActive ? 
@@ -355,11 +398,12 @@ public class RoomService : IRoomService
         };
     }
 
-    private static SubmissionDto MapSubmissionToDto(Submission submission)
+    private static SubmissionDto MapSubmissionToDto(Submission submission, string playerName = "")
     {
         return new SubmissionDto
         {
             PlayerId = submission.PlayerId,
+            PlayerName = playerName,
             TopicName = submission.TopicName,
             Answer = new AnswerDto
             {

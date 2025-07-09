@@ -117,6 +117,59 @@
             align-items: center;
             gap: 10px;
         }
+        
+        .voting-topic {
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        
+        .voting-topic h4 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .submission-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #f9f9f9;
+            border-radius: 3px;
+        }
+        
+        .submission-info {
+            flex: 1;
+        }
+        
+        .vote-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .vote-btn {
+            padding: 5px 15px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        
+        .vote-valid {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .vote-invalid {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .vote-btn.selected {
+            opacity: 0.7;
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body>
@@ -161,6 +214,14 @@
         </div>
 
         <div class="section">
+            <h3>Voting</h3>
+            <div id="votingSection" style="display: none;">
+                <div id="votingContainer"></div>
+                <button onclick="submitVotes()" id="submitVotesBtn" disabled>Submit Votes</button>
+            </div>
+        </div>
+
+        <div class="section">
             <h3>Chat</h3>
             <div id="messages" class="messages"></div>
             <div>
@@ -180,6 +241,8 @@
         let connection = null;
         let currentRoom = null;
         let isConnected = false;
+        let votingData = null;
+        let currentVotes = {};
 
         function updateConnectionStatus(connected) {
             isConnected = connected;
@@ -225,6 +288,7 @@
             const stopBtn = document.getElementById('stopBtn');
             const leaveRoomBtn = document.getElementById('leaveRoomBtn');
             const answersSection = document.getElementById('answersSection');
+            const votingSection = document.getElementById('votingSection');
 
             if (room) {
                 roomInfoDiv.style.display = 'block';
@@ -255,8 +319,18 @@
 
                 if (room.state === 1 && room.currentRound) {
                     showAnswerInputs(room.topics, room.currentRound.letter);
+                    votingSection.style.display = 'none';
+                } else if (room.state === 2) { // RoomState.Voting
+                    answersSection.style.display = 'none';
+                    if (votingData) {
+                        showVotingInterface();
+                    } else {
+                        // Request voting data
+                        connection.invoke('GetVotingData');
+                    }
                 } else {
                     answersSection.style.display = 'none';
+                    votingSection.style.display = 'none';
                 }
             } else {
                 roomInfoDiv.style.display = 'none';
@@ -264,6 +338,7 @@
                 stopBtn.disabled = true;
                 leaveRoomBtn.disabled = true;
                 answersSection.style.display = 'none';
+                votingSection.style.display = 'none';
             }
         }
 
@@ -294,13 +369,15 @@
                     addMessage('system', `Connected with ID: ${connectionId}`);
                 });
 
-                connection.on("RoomCreated", (room) => {
+                connection.on("RoomCreated", (room, currentPlayer) => {
                     addMessage('system', `Room created: ${room.code}`);
+                    room.currentPlayer = currentPlayer;
                     updateRoomInfo(room);
                 });
 
-                connection.on("RoomJoined", (room) => {
+                connection.on("RoomJoined", (room, currentPlayer) => {
                     addMessage('system', `Joined room: ${room.code}`);
+                    room.currentPlayer = currentPlayer;
                     updateRoomInfo(room);
                 });
 
@@ -336,6 +413,28 @@
 
                 connection.on("AnswersSubmitted", (data) => {
                     addMessage('system', `${data.playerName} submitted answers`);
+                });
+
+                connection.on("VotingStarted", (data) => {
+                    addMessage('system', 'Voting phase started!');
+                    votingData = data;
+                    showVotingInterface();
+                });
+
+                connection.on("VoteSubmitted", (data) => {
+                    addMessage('system', `${data.playerName} submitted votes`);
+                });
+
+                connection.on("VotingEnded", (data) => {
+                    addMessage('system', 'Voting ended! Check the results!');
+                    votingData = data;
+                    hideVotingInterface();
+                    showVotingResults();
+                });
+
+                connection.on("VotingData", (data) => {
+                    votingData = data;
+                    showVotingInterface();
                 });
 
                 await connection.start();
@@ -466,6 +565,99 @@
                 addMessage('error', `Failed to leave room: ${err}`);
             }
         }
+
+        function showVotingInterface() {
+            const votingSection = document.getElementById('votingSection');
+            const votingContainer = document.getElementById('votingContainer');
+            const submitVotesBtn = document.getElementById('submitVotesBtn');
+            
+            if (!votingData) return;
+            
+            votingContainer.innerHTML = '';
+            currentVotes = {};
+            
+            Object.keys(votingData).forEach(topicName => {
+                 const topicDiv = document.createElement('div');
+                 topicDiv.className = 'voting-topic';
+                 topicDiv.innerHTML = `<h4>${topicName}</h4>`;
+                 
+                 votingData[topicName].forEach(submission => {
+                     // Skip own submissions
+                     if (submission.playerId === currentRoom.currentPlayer?.id) return;
+                     
+                     const submissionDiv = document.createElement('div');
+                     submissionDiv.className = 'submission-item';
+                     
+                     const voteKey = `${topicName}_${submission.playerId}`;
+                     
+                     submissionDiv.innerHTML = `
+                         <div class="submission-info">
+                             <strong>${submission.answer.word}</strong> - by ${submission.playerName}
+                         </div>
+                         <div class="vote-buttons">
+                             <button class="vote-btn vote-valid" onclick="vote('${voteKey}', '${submission.playerId}', '${topicName}', true)">Valid</button>
+                             <button class="vote-btn vote-invalid" onclick="vote('${voteKey}', '${submission.playerId}', '${topicName}', false)">Invalid</button>
+                         </div>
+                     `;
+                     
+                     topicDiv.appendChild(submissionDiv);
+                 });
+                 
+                 votingContainer.appendChild(topicDiv);
+             });
+            
+            votingSection.style.display = 'block';
+            submitVotesBtn.disabled = false;
+        }
+        
+        function hideVotingInterface() {
+            const votingSection = document.getElementById('votingSection');
+            votingSection.style.display = 'none';
+        }
+        
+        function showVotingResults() {
+            if (!votingData || !votingData.results) return;
+            
+            addMessage('system', 'Voting Results:');
+            votingData.results.forEach(result => {
+                addMessage('system', `${result.topic}: ${result.validAnswers} valid, ${result.invalidAnswers} invalid`);
+            });
+        }
+        
+        function vote(voteKey, answerOwnerId, topicName, isValid) {
+             currentVotes[voteKey] = {
+                 answerOwnerId: answerOwnerId,
+                 topicName: topicName,
+                 isValid: isValid
+             };
+             
+             // Update button appearance
+             const buttons = document.querySelectorAll(`[onclick*="${voteKey}"]`);
+             buttons.forEach(btn => btn.classList.remove('selected'));
+             
+             const selectedBtn = document.querySelector(`[onclick="vote('${voteKey}', '${answerOwnerId}', '${topicName}', ${isValid})"]`);
+             if (selectedBtn) {
+                 selectedBtn.classList.add('selected');
+             }
+         }
+         
+         async function submitVotes() {
+             if (!isConnected || !currentRoom) return;
+             
+             const votes = Object.values(currentVotes).map(vote => ({
+                 answerOwnerId: vote.answerOwnerId,
+                 topicName: vote.topicName,
+                 isValid: vote.isValid
+             }));
+             
+             try {
+                 await connection.invoke('Vote', { votes: votes });
+                 addMessage('system', 'Votes submitted!');
+                 document.getElementById('submitVotesBtn').disabled = true;
+             } catch (err) {
+                 addMessage('error', `Failed to submit votes: ${err}`);
+             }
+         }
 
         // Initialize
         updateConnectionStatus(false);

@@ -178,7 +178,9 @@ public class GameHub : Hub
             }
 
             var updatedRoom = await _roomService.StopRoundAsync(room.Code, player.Id);
+            var votingData = await _roomService.GetVotingDataAsync(room.Code);
             await Clients.Group(room.Code).SendAsync("RoundStopped", updatedRoom);
+            await Clients.Group(room.Code).SendAsync("VotingStarted", votingData);
         }
         catch (Exception ex)
         {
@@ -207,6 +209,39 @@ public class GameHub : Hub
             var updatedRoom = await _roomService.VoteAsync(room.Code, player.Id, request);
             await Clients.Group(room.Code).SendAsync("VoteSubmitted", new { PlayerId = player.Id, PlayerName = player.Name });
             await Clients.Group(room.Code).SendAsync("RoomUpdated", updatedRoom);
+            
+            // Check if voting phase ended
+            if (updatedRoom.State == Domain.Enums.RoomState.Waiting || updatedRoom.State == Domain.Enums.RoomState.Finished)
+            {
+                var votingResults = await _roomService.GetVotingDataAsync(room.Code);
+                await Clients.Group(room.Code).SendAsync("VotingEnded", votingResults);
+            }
+        }
+        catch (Exception ex)
+        {
+            await Clients.Caller.SendAsync("Error", ex.Message);
+        }
+    }
+
+    public async Task GetVotingData()
+    {
+        try
+        {
+            var room = await _roomService.GetRoomByConnectionIdAsync(Context.ConnectionId);
+            if (room == null)
+            {
+                await Clients.Caller.SendAsync("Error", "Room not found");
+                return;
+            }
+
+            if (room.State != Domain.Enums.RoomState.Voting)
+            {
+                await Clients.Caller.SendAsync("Error", "Not in voting phase");
+                return;
+            }
+
+            var votingData = await _roomService.GetVotingDataAsync(room.Code);
+            await Clients.Caller.SendAsync("VotingData", votingData);
         }
         catch (Exception ex)
         {

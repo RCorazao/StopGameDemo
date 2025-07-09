@@ -15,6 +15,7 @@ public interface IRoomService
     Task<RoomDto> SubmitAnswersAsync(string roomCode, Guid playerId, SubmitAnswersRequest request);
     Task<RoomDto> StopRoundAsync(string roomCode, Guid playerId);
     Task<RoomDto> VoteAsync(string roomCode, Guid voterId, VoteRequest request);
+    Task<Dictionary<string, List<SubmissionDto>>> GetVotingDataAsync(string roomCode);
     Task<List<RoomDto>> GetActiveRoomsAsync();
     Task CleanupExpiredRoomsAsync();
     Task UpdatePlayerConnectionAsync(string oldConnectionId, string newConnectionId);
