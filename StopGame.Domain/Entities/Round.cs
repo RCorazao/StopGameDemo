@@ -8,7 +8,7 @@ public class Round
     public char Letter { get; set; }
     public DateTime StartedAt { get; set; }
     public DateTime? EndedAt { get; set; }
-    public List<Submission> Submissions { get; set; } = new();
+    public List<Answer> Answers { get; set; } = new();
     public List<Vote> Votes { get; set; } = new();
     public bool IsActive { get; set; } = true;
     
@@ -32,20 +32,20 @@ public class Round
         EndedAt = DateTime.UtcNow;
     }
     
-    public void AddSubmission(Submission submission)
+    public void AddAnswer(Answer answer)
     {
         if (IsActive)
         {
-            // Remove existing submission from same player for same topic
-            var existingSubmission = Submissions.FirstOrDefault(s => 
-                s.PlayerId == submission.PlayerId && s.TopicName == submission.TopicName);
+            // Remove existing answer from same player for same topic
+            var existingAnswer = Answers.FirstOrDefault(a => 
+                a.PlayerId == answer.PlayerId && a.TopicId == answer.TopicId);
             
-            if (existingSubmission != null)
+            if (existingAnswer != null)
             {
-                Submissions.Remove(existingSubmission);
+                Answers.Remove(existingAnswer);
             }
             
-            Submissions.Add(submission);
+            Answers.Add(answer);
         }
     }
     
@@ -65,66 +65,66 @@ public class Round
         Votes.Add(vote);
     }
     
-    public List<Submission> GetSubmissionsForPlayer(Guid playerId)
+    public List<Answer> GetAnswersForPlayer(Guid playerId)
     {
-        return Submissions.Where(s => s.PlayerId == playerId).ToList();
+        return Answers.Where(a => a.PlayerId == playerId).ToList();
     }
     
-    public List<Submission> GetSubmissionsForTopic(string topicName)
+    public List<Answer> GetAnswersForTopic(Guid topicId)
     {
-        return Submissions.Where(s => s.TopicName == topicName).ToList();
+        return Answers.Where(a => a.TopicId == topicId).ToList();
     }
     
-    public bool HasPlayerSubmitted(Guid playerId)
+    public bool HasPlayerAnswered(Guid playerId, Guid TopicId)
     {
-        return Submissions.Any(s => s.PlayerId == playerId);
+        return Answers.Any(a => a.PlayerId == playerId && a.TopicId == TopicId);
     }
     
     public Dictionary<Guid, int> CalculateScores(List<string> topicNames)
     {
         var scores = new Dictionary<Guid, int>();
         
-        foreach (var topicName in topicNames)
-        {
-            var topicSubmissions = GetSubmissionsForTopic(topicName);
-            var validSubmissions = topicSubmissions.Where(s => IsAnswerValid(s, topicName)).ToList();
+        //foreach (var topicName in topicNames)
+        //{
+        //    var topicSubmissions = GetSubmissionsForTopic(topicName);
+        //    var validSubmissions = topicSubmissions.Where(s => IsAnswerValid(s, topicName)).ToList();
             
-            foreach (var submission in validSubmissions)
-            {
-                if (!scores.ContainsKey(submission.PlayerId))
-                    scores[submission.PlayerId] = 0;
+        //    foreach (var submission in validSubmissions)
+        //    {
+        //        if (!scores.ContainsKey(submission.PlayerId))
+        //            scores[submission.PlayerId] = 0;
                 
-                // Base points for valid answer
-                int points = 10;
+        //        // Base points for valid answer
+        //        int points = 10;
                 
-                // Bonus points for unique answers
-                var sameAnswers = validSubmissions.Count(s => 
-                    s.Answer.Word.Equals(submission.Answer.Word, StringComparison.OrdinalIgnoreCase));
+        //        // Bonus points for unique answers
+        //        var sameAnswers = validSubmissions.Count(s => 
+        //            s.Answer.Word.Equals(submission.Answer.Word, StringComparison.OrdinalIgnoreCase));
                 
-                if (sameAnswers == 1)
-                {
-                    points += 5; // Unique answer bonus
-                }
+        //        if (sameAnswers == 1)
+        //        {
+        //            points += 5; // Unique answer bonus
+        //        }
                 
-                scores[submission.PlayerId] += points;
-            }
-        }
+        //        scores[submission.PlayerId] += points;
+        //    }
+        //}
         
         return scores;
     }
     
-    private bool IsAnswerValid(Submission submission, string topicName)
-    {
-        var topicVotes = Votes.Where(v => 
-            v.AnswerOwnerId == submission.PlayerId && 
-            v.TopicName == topicName).ToList();
+    //private bool IsAnswerValid(Answer answer, Guid topicId)
+    //{
+    //    var topicVotes = Votes.Where(v => 
+    //        v.AnswerOwnerId == submission.PlayerId && 
+    //        v.TopicName == topicName).ToList();
         
-        if (!topicVotes.Any())
-            return true; // No votes means valid by default
+    //    if (!topicVotes.Any())
+    //        return true; // No votes means valid by default
         
-        var validVotes = topicVotes.Count(v => v.IsValid);
-        var invalidVotes = topicVotes.Count(v => !v.IsValid);
+    //    var validVotes = topicVotes.Count(v => v.IsValid);
+    //    var invalidVotes = topicVotes.Count(v => !v.IsValid);
         
-        return validVotes >= invalidVotes;
-    }
+    //    return validVotes >= invalidVotes;
+    //}
 }

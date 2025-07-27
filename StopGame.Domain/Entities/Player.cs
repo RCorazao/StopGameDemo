@@ -8,7 +8,8 @@ public class Player
     public int Score { get; set; }
     public bool IsConnected { get; set; } = true;
     public DateTime JoinedAt { get; set; }
-    
+    public bool AnswerSubmitted { get; set; } = false;
+
     public Player()
     {
         Id = Guid.NewGuid();
@@ -31,7 +32,12 @@ public class Player
         ConnectionId = connectionId;
         IsConnected = true;
     }
-    
+
+    public void MarkAnswerSubmitted()
+    {
+        AnswerSubmitted = true;
+    }
+
     public void Disconnect()
     {
         IsConnected = false;

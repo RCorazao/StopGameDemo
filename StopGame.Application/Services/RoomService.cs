@@ -161,7 +161,7 @@ public class RoomService : IRoomService
         return MapToDto(updatedRoom);
     }
 
-    public async Task<RoomDto> SubmitAnswersAsync(string roomCode, Guid playerId, SubmitAnswersRequest request)
+    public async Task<bool> SubmitAnswersAsync(string roomCode, Guid playerId, SubmitAnswersRequest request)
     {
         var room = await _roomRepository.GetByCodeAsync(roomCode);
         if (room == null)
@@ -185,11 +185,21 @@ public class RoomService : IRoomService
             currentRound.AddSubmission(submission);
         }
 
-        var updatedRoom = await _roomRepository.UpdateAsync(room);
-        return MapToDto(updatedRoom);
+        player.MarkAnswerSubmitted();
+
+        if (room.HasPlayersSubmittedAnswers())
+        {
+            room.EndCurrentRound();
+            await _roomRepository.UpdateAsync(room);
+            return true;
+        }
+
+        await _roomRepository.UpdateAsync(room);
+        return false;
+        //return MapToDto(updatedRoom);
     }
 
-    public async Task<RoomDto> StopRoundAsync(string roomCode, Guid playerId)
+    public async Task StopRoundAsync(string roomCode, Guid playerId)
     {
         var room = await _roomRepository.GetByCodeAsync(roomCode);
         if (room == null)
@@ -203,13 +213,13 @@ public class RoomService : IRoomService
         if (player == null)
             throw new InvalidOperationException("Player not found in room");
 
-        room.EndCurrentRound();
-        var updatedRoom = await _roomRepository.UpdateAsync(room);
+        //room.EndCurrentRound();
+        //var updatedRoom = await _roomRepository.UpdateAsync(room);
         
         await _chatService.NotifyRoundEndedAsync(room.Code);
         await _chatService.NotifyVotingStartedAsync(room.Code, room.VotingDurationSeconds);
         
-        return MapToDto(updatedRoom);
+        //return MapToDto(updatedRoom);
     }
 
     public async Task<RoomDto> VoteAsync(string roomCode, Guid voterId, VoteRequest request)
@@ -242,7 +252,7 @@ public class RoomService : IRoomService
         if (currentRound.Votes.Count >= totalVotesNeeded)
         {
             // Calculate scores and end voting
-            var scores = currentRound.CalculateScores(room.Topics.Select(t => t.Name).ToList());
+            var scores = currentRound.CalculateScores(room.Topics.Select(t => t.Name).ToList()); // TODO
             foreach (var score in scores)
             {
                 var player = room.GetPlayer(score.Key);
@@ -278,7 +288,7 @@ public class RoomService : IRoomService
         
         foreach (var topic in room.Topics)
         {
-            var topicSubmissions = currentRound.GetSubmissionsForTopic(topic.Name)
+            var topicSubmissions = currentRound.GetSubmissionsForTopic(topic.Id)
                 .Select(s => 
                 {
                     var player = room.GetPlayer(s.PlayerId);

@@ -104,4 +104,17 @@ public class Room
     }
     
     public bool IsExpired() => ExpiresAt.HasValue && DateTime.UtcNow > ExpiresAt.Value;
+
+    public bool HasPlayersSubmittedAnswers()
+    {
+        return !Players.Any(p => !p.AnswerSubmitted);
+    }
+
+    public void ResetPlayerSubmissions()
+    {
+        foreach (var player in Players)
+        {
+            player.AnswerSubmitted = false;
+        }
+    }
 }

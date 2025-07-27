@@ -149,9 +149,19 @@ public class GameHub : Hub
                 return;
             }
 
-            var updatedRoom = await _roomService.SubmitAnswersAsync(room.Code, player.Id, request);
-            await Clients.Group(room.Code).SendAsync("AnswersSubmitted", new { PlayerId = player.Id, PlayerName = player.Name });
-            await Clients.Caller.SendAsync("RoomUpdated", updatedRoom);
+            var hasAllAnswers = await _roomService.SubmitAnswersAsync(room.Code, player.Id, request);
+            //await Clients.Group(room.Code).SendAsync("AnswersSubmitted", new { PlayerId = player.Id, PlayerName = player.Name });
+            //await Clients.Caller.SendAsync("RoomUpdated", updatedRoom);
+            if (hasAllAnswers)
+            {
+                var votingData = await _roomService.GetVotingDataAsync(room.Code);
+
+                await Clients.Group(room.Code).SendAsync("AllAnswersSubmitted", player.Id);
+            }
+            else
+            {
+                await Clients.Caller.SendAsync("PartialAnswersSubmitted", player.Id);
+            }
         }
         catch (Exception ex)
         {
@@ -177,10 +187,10 @@ public class GameHub : Hub
                 return;
             }
 
-            var updatedRoom = await _roomService.StopRoundAsync(room.Code, player.Id);
-            var votingData = await _roomService.GetVotingDataAsync(room.Code);
-            await Clients.Group(room.Code).SendAsync("RoundStopped", updatedRoom);
-            await Clients.Group(room.Code).SendAsync("VotingStarted", votingData);
+            await _roomService.StopRoundAsync(room.Code, player.Id);
+            //var votingData = await _roomService.GetVotingDataAsync(room.Code);
+            await Clients.Group(room.Code).SendAsync("RoundStopped");
+            //await Clients.Group(room.Code).SendAsync("VotingStarted", votingData);
         }
         catch (Exception ex)
         {

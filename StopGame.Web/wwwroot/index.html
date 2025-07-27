@@ -392,6 +392,8 @@
 
                 connection.on("RoundStopped", (room) => {
                     addMessage('system', 'Round stopped! Time to vote!');
+                    // Automatically submit incomplete answers when round is stopped
+                    submitIncompleteAnswers();
                     updateRoomInfo(room);
                 });
 
@@ -413,6 +415,10 @@
 
                 connection.on("AnswersSubmitted", (data) => {
                     addMessage('system', `${data.playerName} submitted answers`);
+                });
+
+                connection.on("IncompleteAnswersSubmitted", (data) => {
+                    addMessage('system', `${data.playerName} submitted incomplete answers`);
                 });
 
                 connection.on("VotingStarted", (data) => {
@@ -535,6 +541,31 @@
                 addMessage('system', 'Answers submitted!');
             } catch (err) {
                 addMessage('error', `Failed to submit answers: ${err}`);
+            }
+        }
+
+        async function submitIncompleteAnswers() {
+            if (!isConnected || !currentRoom || !currentRoom.currentRound) return;
+            
+            const answers = {};
+            let hasAnswers = false;
+            
+            currentRoom.topics.forEach(topic => {
+                const input = document.getElementById(`answer_${topic.name}`);
+                if (input && input.value.trim()) {
+                    answers[topic.name] = input.value.trim();
+                    hasAnswers = true;
+                }
+            });
+
+            // Only submit if there are any answers to submit
+            if (hasAnswers) {
+                try {
+                    await connection.invoke("SubmitIncompleteAnswers", { answers: answers });
+                    addMessage('system', 'Incomplete answers submitted automatically!');
+                } catch (err) {
+                    addMessage('error', `Failed to submit incomplete answers: ${err}`);
+                }
             }
         }
 
