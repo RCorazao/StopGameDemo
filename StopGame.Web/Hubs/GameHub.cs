@@ -149,18 +149,15 @@ public class GameHub : Hub
                 return;
             }
 
-            var hasAllAnswers = await _roomService.SubmitAnswersAsync(room.Code, player.Id, request);
+            var updatedRoom = await _roomService.SubmitAnswersAsync(room.Code, player.Id, request);
             //await Clients.Group(room.Code).SendAsync("AnswersSubmitted", new { PlayerId = player.Id, PlayerName = player.Name });
             //await Clients.Caller.SendAsync("RoomUpdated", updatedRoom);
-            if (hasAllAnswers)
+            if (updatedRoom != null)
             {
-                var votingData = await _roomService.GetVotingDataAsync(room.Code);
+                await Clients.Group(room.Code).SendAsync("RoomUpdated", updatedRoom);
 
-                await Clients.Group(room.Code).SendAsync("AllAnswersSubmitted", player.Id);
-            }
-            else
-            {
-                await Clients.Caller.SendAsync("PartialAnswersSubmitted", player.Id);
+                var answersData = await _roomService.GetAnswersDataAsync(room.Code);
+                await Clients.Group(room.Code).SendAsync("VoteStarted", answersData);
             }
         }
         catch (Exception ex)
@@ -200,63 +197,63 @@ public class GameHub : Hub
 
     public async Task Vote(VoteRequest request)
     {
-        try
-        {
-            var room = await _roomService.GetRoomByConnectionIdAsync(Context.ConnectionId);
-            if (room == null)
-            {
-                await Clients.Caller.SendAsync("Error", "Room not found");
-                return;
-            }
+        // try
+        // {
+        //     var room = await _roomService.GetRoomByConnectionIdAsync(Context.ConnectionId);
+        //     if (room == null)
+        //     {
+        //         await Clients.Caller.SendAsync("Error", "Room not found");
+        //         return;
+        //     }
 
-            var player = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
-            if (player == null)
-            {
-                await Clients.Caller.SendAsync("Error", "Player not found");
-                return;
-            }
+        //     var player = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
+        //     if (player == null)
+        //     {
+        //         await Clients.Caller.SendAsync("Error", "Player not found");
+        //         return;
+        //     }
 
-            var updatedRoom = await _roomService.VoteAsync(room.Code, player.Id, request);
-            await Clients.Group(room.Code).SendAsync("VoteSubmitted", new { PlayerId = player.Id, PlayerName = player.Name });
-            await Clients.Group(room.Code).SendAsync("RoomUpdated", updatedRoom);
+        //     var updatedRoom = await _roomService.VoteAsync(room.Code, player.Id, request);
+        //     await Clients.Group(room.Code).SendAsync("VoteSubmitted", new { PlayerId = player.Id, PlayerName = player.Name });
+        //     await Clients.Group(room.Code).SendAsync("RoomUpdated", updatedRoom);
             
-            // Check if voting phase ended
-            if (updatedRoom.State == Domain.Enums.RoomState.Waiting || updatedRoom.State == Domain.Enums.RoomState.Finished)
-            {
-                var votingResults = await _roomService.GetVotingDataAsync(room.Code);
-                await Clients.Group(room.Code).SendAsync("VotingEnded", votingResults);
-            }
-        }
-        catch (Exception ex)
-        {
-            await Clients.Caller.SendAsync("Error", ex.Message);
-        }
+        //     // Check if voting phase ended
+        //     if (updatedRoom.State == Domain.Enums.RoomState.Waiting || updatedRoom.State == Domain.Enums.RoomState.Finished)
+        //     {
+        //         var votingResults = await _roomService.GetVotingDataAsync(room.Code);
+        //         await Clients.Group(room.Code).SendAsync("VotingEnded", votingResults);
+        //     }
+        // }
+        // catch (Exception ex)
+        // {
+        //     await Clients.Caller.SendAsync("Error", ex.Message);
+        // }
     }
 
     public async Task GetVotingData()
     {
-        try
-        {
-            var room = await _roomService.GetRoomByConnectionIdAsync(Context.ConnectionId);
-            if (room == null)
-            {
-                await Clients.Caller.SendAsync("Error", "Room not found");
-                return;
-            }
+        // try
+        // {
+        //     var room = await _roomService.GetRoomByConnectionIdAsync(Context.ConnectionId);
+        //     if (room == null)
+        //     {
+        //         await Clients.Caller.SendAsync("Error", "Room not found");
+        //         return;
+        //     }
 
-            if (room.State != Domain.Enums.RoomState.Voting)
-            {
-                await Clients.Caller.SendAsync("Error", "Not in voting phase");
-                return;
-            }
+        //     if (room.State != Domain.Enums.RoomState.Voting)
+        //     {
+        //         await Clients.Caller.SendAsync("Error", "Not in voting phase");
+        //         return;
+        //     }
 
-            var votingData = await _roomService.GetVotingDataAsync(room.Code);
-            await Clients.Caller.SendAsync("VotingData", votingData);
-        }
-        catch (Exception ex)
-        {
-            await Clients.Caller.SendAsync("Error", ex.Message);
-        }
+        //     var votingData = await _roomService.GetVotingDataAsync(room.Code);
+        //     await Clients.Caller.SendAsync("VotingData", votingData);
+        // }
+        // catch (Exception ex)
+        // {
+        //     await Clients.Caller.SendAsync("Error", ex.Message);
+        // }
     }
 
     public async Task LeaveRoom()

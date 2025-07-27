@@ -32,7 +32,7 @@ public class Answer
             return false;
             
         return Value.Equals(other.Value, StringComparison.OrdinalIgnoreCase) &&
-               TopicName.Equals(other.TopicName, StringComparison.OrdinalIgnoreCase);
+               TopicId == other.TopicId;
     }
     
     public override int GetHashCode()

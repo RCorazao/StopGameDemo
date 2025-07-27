@@ -117,4 +117,6 @@ public class Room
             player.AnswerSubmitted = false;
         }
     }
+
+    public Topic? GetTopicById(Guid topicId) => Topics.FirstOrDefault(t => t.Id == topicId);
 }

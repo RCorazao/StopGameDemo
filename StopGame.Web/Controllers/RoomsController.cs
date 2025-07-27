@@ -119,8 +119,8 @@ public class RoomsController : ControllerBase
     {
         try
         {
-            var room = await _roomService.StopRoundAsync(roomCode, request.PlayerId);
-            return Ok(room);
+            await _roomService.StopRoundAsync(roomCode, request.PlayerId);
+            return Ok();
         }
         catch (Exception ex)
         {
