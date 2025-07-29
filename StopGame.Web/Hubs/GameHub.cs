@@ -223,6 +223,34 @@ public class GameHub : Hub
         }
     }
 
+    public async Task FinishVotingPhase()
+    {
+        try
+        {
+            var room = await _roomService.GetRoomByConnectionIdAsync(Context.ConnectionId);
+            if (room == null)
+            {
+                await Clients.Caller.SendAsync("Error", "Room not found");
+                return;
+            }
+
+            var player = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
+            if (player == null)
+            {
+                await Clients.Caller.SendAsync("Error", "Player not found");
+                return;
+            }
+
+            var updatedRoom = await _roomService.FinishVotingPhase(room.Code, player.Id);
+
+            await Clients.Group(room.Code).SendAsync("VotingFinished", updatedRoom);
+        }
+        catch (Exception ex)
+        {
+            await Clients.Caller.SendAsync("Error", ex.Message);
+        }
+    }
+
     public async Task GetVotingData()
     {
         // try

@@ -69,7 +69,7 @@ public class Room
     
     public Round? GetCurrentRound() => Rounds.LastOrDefault();
     
-    public bool CanStartNewRound() => State == RoomState.Waiting && Players.Count >= 2;
+    public bool CanStartNewRound() => (State == RoomState.Waiting && Players.Count >= 2) || State == RoomState.Results;
     
     public void StartNewRound()
     {
@@ -93,13 +93,10 @@ public class Room
     
     public void EndVoting()
     {
-        if (Rounds.Count >= MaxRounds)
+        var currentRound = GetCurrentRound();
+        if (currentRound != null)
         {
-            State = RoomState.Finished;
-        }
-        else
-        {
-            State = RoomState.Waiting;
+            State = RoomState.Results;
         }
     }
     
@@ -142,6 +139,25 @@ public class Room
                     TopicId = answer.TopicId,
                     IsValid = true,
                 });
+            }
+        }
+    }
+
+    public void CalculateScores()
+    {
+        var currentRound = GetCurrentRound();
+        if (currentRound is null) return;
+
+        foreach (var player in Players)
+        {
+            if (!player.IsConnected) continue;
+            var playerAnswers = currentRound.GetAnswersForPlayer(player.Id);
+            foreach (var answer in playerAnswers)
+            {
+                if (answer is null) continue;
+
+                int points = answer.GetPoints();
+                player.AddScore(points);
             }
         }
     }

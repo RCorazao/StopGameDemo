@@ -292,6 +292,27 @@ public class RoomService : IRoomService
         return answersData;
     }
 
+    public async Task<RoomDto> FinishVotingPhase(string roomCode, Guid playerId)
+    {
+        var room = await _roomRepository.GetByCodeAsync(roomCode);
+        if (room == null)
+            throw new InvalidOperationException("Room not found");
+
+        if (room.State != RoomState.Voting)
+            throw new InvalidOperationException("Not in voting phase");
+
+        if (!room.IsHost(playerId))
+            throw new UnauthorizedAccessException("Only host can finish voting phase");
+
+        room.CalculateScores();
+        room.EndVoting();
+
+        var updatedRoom = await _roomRepository.UpdateAsync(room);
+        await _chatService.NotifyVotingEndedAsync(room.Code);
+
+        return MapToDto(updatedRoom);
+    }
+
     public async Task<List<RoomDto>> GetActiveRoomsAsync()
     {
         var rooms = await _roomRepository.GetActiveRoomsAsync();

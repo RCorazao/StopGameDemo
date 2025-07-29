@@ -56,4 +56,18 @@ public class Answer
 
         existingVote.IsValid = vote.IsValid;
     }
+
+    public int GetPoints()
+    {
+        var totalVotes = Votes.Count;
+
+        if (Votes.Count(v => v.IsValid) <= totalVotes / 2)
+        {
+            return 0;
+        }
+
+        var favorableVotes = Votes.Count(v => v.IsValid);
+
+        return favorableVotes * 20;
+    }
 }

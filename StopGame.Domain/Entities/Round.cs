@@ -100,19 +100,4 @@ public class Round
         
         return scores;
     }
-    
-    //private bool IsAnswerValid(Answer answer, Guid topicId)
-    //{
-    //    var topicVotes = Votes.Where(v => 
-    //        v.AnswerOwnerId == submission.PlayerId && 
-    //        v.TopicName == topicName).ToList();
-        
-    //    if (!topicVotes.Any())
-    //        return true; // No votes means valid by default
-        
-    //    var validVotes = topicVotes.Count(v => v.IsValid);
-    //    var invalidVotes = topicVotes.Count(v => !v.IsValid);
-        
-    //    return validVotes >= invalidVotes;
-    //}
 }
