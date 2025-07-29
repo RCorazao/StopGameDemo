@@ -119,4 +119,30 @@ public class Room
     }
 
     public Topic? GetTopicById(Guid topicId) => Topics.FirstOrDefault(t => t.Id == topicId);
+
+    public int GetTotalPlayers() => Players.Count(p => p.IsConnected);
+
+    public void InitializeVotes()
+    {
+        var currentRound = GetCurrentRound();
+        if (currentRound is null) return;
+
+        foreach (var answer in currentRound.Answers)
+        {
+            if (answer is null) continue;
+
+            foreach (var player in Players)
+            {
+                if (!player.IsConnected) continue;
+
+                answer.AddVote(new Vote
+                {
+                    VoterId = player.Id,
+                    AnswerOwnerId = answer.PlayerId,
+                    TopicId = answer.TopicId,
+                    IsValid = true,
+                });
+            }
+        }
+    }
 }

@@ -4,8 +4,8 @@ public class Vote
 {
     public Guid VoterId { get; set; }
     public Guid AnswerOwnerId { get; set; }
-    public string TopicName { get; set; } = string.Empty;
-    public bool IsValid { get; set; }
+    public Guid TopicId { get; set; }
+    public bool IsValid { get; set; } = true;
     public DateTime CreatedAt { get; set; }
     
     public Vote()
@@ -13,11 +13,11 @@ public class Vote
         CreatedAt = DateTime.UtcNow;
     }
     
-    public Vote(Guid voterId, Guid answerOwnerId, string topicName, bool isValid) : this()
+    public Vote(Guid voterId, Guid answerOwnerId, Guid topicId, bool isValid) : this()
     {
         VoterId = voterId;
         AnswerOwnerId = answerOwnerId;
-        TopicName = topicName;
+        TopicId = topicId;
         IsValid = isValid;
     }
 }

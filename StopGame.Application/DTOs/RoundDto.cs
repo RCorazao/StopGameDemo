@@ -7,7 +7,6 @@ public class RoundDto
     public DateTime StartedAt { get; set; }
     public DateTime? EndedAt { get; set; }
     public List<AnswerDto> Answers { get; set; } = new();
-    public List<VoteDto> Votes { get; set; } = new();
     public bool IsActive { get; set; }
     public int TimeRemainingSeconds { get; set; }
 }

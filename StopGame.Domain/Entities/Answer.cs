@@ -41,4 +41,19 @@ public class Answer
             Value.ToLowerInvariant(), 
             TopicName.ToLowerInvariant());
     }
+
+    public void AddVote(Vote vote)
+    {
+        var existingVote = Votes.FirstOrDefault(v => v.VoterId == vote.VoterId);
+
+        if (existingVote is null)
+        {
+            Votes.Add(vote);
+            return;
+        }
+
+        if (existingVote.IsValid == vote.IsValid) return;
+
+        existingVote.IsValid = vote.IsValid;
+    }
 }

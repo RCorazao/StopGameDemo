@@ -193,6 +193,7 @@ public class RoomService : IRoomService
         if (room.HasPlayersSubmittedAnswers())
         {
             room.EndCurrentRound();
+            room.InitializeVotes();
             var updatedRoom = await _roomRepository.UpdateAsync(room);
             return MapToDto(updatedRoom);
         }
@@ -241,37 +242,15 @@ public class RoomService : IRoomService
         if (voter == null)
             throw new InvalidOperationException("Voter not found in room");
 
-        foreach (var voteItem in request.Votes)
-        {
-            var vote = new Vote(voterId, voteItem.AnswerOwnerId, voteItem.TopicName, voteItem.IsValid);
-            currentRound.AddVote(vote);
-        }
+        var answer = currentRound.GetAnswerById(request.AnswerId);
+
+        if (answer == null)
+            throw new InvalidOperationException("Answer not found");
+
+        var vote = new Vote(voterId, answer.PlayerId, answer.TopicId, request.IsValid);
+        answer.AddVote(vote);
 
         var updatedRoom = await _roomRepository.UpdateAsync(room);
-        
-        // Check if all players have voted
-        var totalVotesNeeded = room.Players.Count * room.Topics.Count * (room.Players.Count - 1);
-        if (currentRound.Votes.Count >= totalVotesNeeded)
-        {
-            // Calculate scores and end voting
-            var scores = currentRound.CalculateScores(room.Topics.Select(t => t.Name).ToList()); // TODO
-            foreach (var score in scores)
-            {
-                var player = room.GetPlayer(score.Key);
-                player?.AddScore(score.Value);
-            }
-            
-            room.EndVoting();
-            updatedRoom = await _roomRepository.UpdateAsync(room);
-            
-            await _chatService.NotifyVotingEndedAsync(room.Code);
-            
-            if (room.State == RoomState.Finished)
-            {
-                var finalScores = room.Players.OrderByDescending(p => p.Score).ToList();
-                await _chatService.NotifyGameFinishedAsync(room.Code, finalScores.Select(p => MapPlayerToDto(p)).ToList());
-            }
-        }
         
         return MapToDto(updatedRoom);
     }
@@ -304,7 +283,7 @@ public class RoomService : IRoomService
                         TopicName = a.TopicName,
                         Value = a.Value,
                         CreatedAt = a.CreatedAt,
-                        Votes = a.Votes.Select(MapVoteToDto).ToList()
+                        Votes = a.Votes.Select(v => MapVoteToDto(room, v)).ToList()
                     };
                 }).ToList()
             })
@@ -351,14 +330,14 @@ public class RoomService : IRoomService
             Topics = room.Topics.Select(MapTopicToDto).ToList(),
             Players = room.Players.Select(p => MapPlayerToDto(p, room.IsHost(p.Id))).ToList(),
             State = room.State,
-            Rounds = room.Rounds.Select(MapRoundToDto).ToList(),
+            Rounds = room.Rounds.Select(r => MapRoundToDto(room, r)).ToList(),
             CreatedAt = room.CreatedAt,
             ExpiresAt = room.ExpiresAt,
             MaxPlayers = room.MaxPlayers,
             RoundDurationSeconds = room.RoundDurationSeconds,
             VotingDurationSeconds = room.VotingDurationSeconds,
             MaxRounds = room.MaxRounds,
-            CurrentRound = room.GetCurrentRound() != null ? MapRoundToDto(room.GetCurrentRound()!) : null
+            CurrentRound = room.GetCurrentRound() != null ? MapRoundToDto(room, room.GetCurrentRound()!) : null
         };
     }
 
@@ -388,7 +367,7 @@ public class RoomService : IRoomService
         };
     }
 
-    private static RoundDto MapRoundToDto(Round round)
+    private static RoundDto MapRoundToDto(Room room, Round round)
     {
         return new RoundDto
         {
@@ -396,15 +375,14 @@ public class RoomService : IRoomService
             Letter = round.Letter,
             StartedAt = round.StartedAt,
             EndedAt = round.EndedAt,
-            Answers = round.Answers.Select(MapAnswerToDto).ToList(),
-            Votes = round.Votes.Select(MapVoteToDto).ToList(),
+            Answers = round.Answers.Select(a => MapAnswerToDto(room, a)).ToList(),
             IsActive = round.IsActive,
             TimeRemainingSeconds = round.IsActive ? 
                 Math.Max(0, 60 - (int)(DateTime.UtcNow - round.StartedAt).TotalSeconds) : 0
         };
     }
 
-    private static AnswerDto MapAnswerToDto(Answer answer)
+    private static AnswerDto MapAnswerToDto(Room room, Answer answer)
     {
         return new AnswerDto
         {
@@ -414,17 +392,20 @@ public class RoomService : IRoomService
             TopicName = answer.TopicName,
             Value = answer.Value,
             CreatedAt = answer.CreatedAt,
-            Votes = answer.Votes.Select(MapVoteToDto).ToList()
+            Votes = answer.Votes.Select(v => MapVoteToDto(room, v)).ToList()
         };
     }
 
-    private static VoteDto MapVoteToDto(Vote vote)
+    private static VoteDto MapVoteToDto(Room room, Vote vote)
     {
         return new VoteDto
         {
             VoterId = vote.VoterId,
+            VoterName = room.GetPlayer(vote.VoterId)?.Name ?? "Unknown",
             AnswerOwnerId = vote.AnswerOwnerId,
-            TopicName = vote.TopicName,
+            AnswerOwnerName = room.GetPlayer(vote.AnswerOwnerId)?.Name ?? "Unknown",
+            TopicId = vote.TopicId,
+            TopicName = room.GetTopicById(vote.TopicId)?.Name ?? "Unknown",
             IsValid = vote.IsValid,
             CreatedAt = vote.CreatedAt
         };

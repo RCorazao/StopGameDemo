@@ -9,7 +9,6 @@ public class Round
     public DateTime StartedAt { get; set; }
     public DateTime? EndedAt { get; set; }
     public List<Answer> Answers { get; set; } = new();
-    public List<Vote> Votes { get; set; } = new();
     public bool IsActive { get; set; } = true;
     
     public Round()
@@ -49,22 +48,6 @@ public class Round
         }
     }
     
-    public void AddVote(Vote vote)
-    {
-        // Remove existing vote from same voter for same answer
-        var existingVote = Votes.FirstOrDefault(v => 
-            v.VoterId == vote.VoterId && 
-            v.AnswerOwnerId == vote.AnswerOwnerId && 
-            v.TopicName == vote.TopicName);
-        
-        if (existingVote != null)
-        {
-            Votes.Remove(existingVote);
-        }
-        
-        Votes.Add(vote);
-    }
-    
     public List<Answer> GetAnswersForPlayer(Guid playerId)
     {
         return Answers.Where(a => a.PlayerId == playerId).ToList();
@@ -79,7 +62,12 @@ public class Round
     {
         return Answers.Any(a => a.PlayerId == playerId && a.TopicId == TopicId);
     }
-    
+
+    public Answer? GetAnswerById(Guid answerId)
+    {
+        return Answers.FirstOrDefault(a => a.Id == answerId);
+    }
+
     public Dictionary<Guid, int> CalculateScores(List<string> topicNames)
     {
         var scores = new Dictionary<Guid, int>();
