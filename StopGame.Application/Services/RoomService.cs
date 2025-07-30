@@ -180,8 +180,8 @@ public class RoomService : IRoomService
         {
             var answerRecord = new Answer(){
                 PlayerId = playerId,
-                TopicId = answer.Key,
-                TopicName = room.GetTopicById(answer.Key)?.Name ?? string.Empty,
+                TopicId = Guid.Parse(answer.Key),
+                TopicName = room.GetTopicById(Guid.Parse(answer.Key))?.Name ?? string.Empty,
                 Value = answer.Value,
             };
 
