@@ -7,21 +7,21 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
+      - "8081:8081"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=Server=mysql;Port=3306;Database=stopgamedb;User=root;Password=${MYSQL_ROOT_PASSWORD}
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=mysql;Port=3306;Database=stopgamedb;User=root;Password=password
       - ConnectionStrings__Redis=redis:6379
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_started
-    restart: unless-stopped
 
   mysql:
     image: mysql:8.0
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: stopgamedb
     ports:
       - "3306:3306"
@@ -32,7 +32,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
 
   redis:
     image: redis:latest
@@ -45,7 +44,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
 
 volumes:
   mysql-data:
