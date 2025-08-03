@@ -90,16 +90,16 @@ public class Room
             State = RoomState.Voting;
         }
     }
-    
+
     public void EndVoting()
     {
-        var currentRound = GetCurrentRound();
-        if (currentRound != null)
-        {
-            State = RoomState.Results;
-        }
+        if (GetCurrentRound() is null) return;
+
+        State = (MaxRounds == Rounds.Count())
+            ? RoomState.Finished
+            : RoomState.Results;
     }
-    
+
     public bool IsExpired() => ExpiresAt.HasValue && DateTime.UtcNow > ExpiresAt.Value;
 
     public bool HasPlayersSubmittedAnswers()

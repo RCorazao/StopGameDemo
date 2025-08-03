@@ -1,6 +1,7 @@
 using StopGame.Application.DTOs;
 using StopGame.Application.DTOs.Requests;
 using StopGame.Application.Interfaces;
+using StopGame.Application.Mappings;
 using StopGame.Domain.Entities;
 using StopGame.Domain.ValueObjects;
 
@@ -59,7 +60,7 @@ public class AnswerSubmissionService : IAnswerSubmissionService
                 room.EndCurrentRound();
                 room.InitializeVotes();
                 var updatedRoom = await _roomRepository.UpdateAsync(room);
-                await _signalRService.SendToGroupAsync(roomCode, "RoomUpdated", updatedRoom);
+                await _signalRService.SendToGroupAsync(roomCode, "RoomUpdated", RoomMappings.MapToDto(updatedRoom));
 
                 var answersData = await GetAnswersDataAsync(roomCode);
                 await _signalRService.SendToGroupAsync(roomCode, "VoteStarted", answersData);
