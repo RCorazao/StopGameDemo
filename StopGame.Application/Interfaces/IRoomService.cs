@@ -12,7 +12,7 @@ public interface IRoomService
     Task<RoomDto?> GetRoomByConnectionIdAsync(string connectionId);
     Task LeaveRoomAsync(string connectionId);
     Task<RoomDto> StartRoundAsync(string roomCode, Guid hostUserId);
-    Task<RoomDto?> SubmitAnswersAsync(string roomCode, Guid playerId, SubmitAnswersRequest request);
+    Task SubmitAnswersAsync(string roomCode, Guid playerId, SubmitAnswersRequest request);
     Task StopRoundAsync(string roomCode, Guid playerId);
     Task<RoomDto> VoteAsync(string roomCode, Guid voterId, VoteRequest request);
     Task<List<VoteAnswerDto>> GetAnswersDataAsync(string roomCode);

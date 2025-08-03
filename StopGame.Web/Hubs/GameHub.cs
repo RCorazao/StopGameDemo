@@ -149,16 +149,8 @@ public class GameHub : Hub
                 return;
             }
 
-            var updatedRoom = await _roomService.SubmitAnswersAsync(room.Code, player.Id, request);
-            //await Clients.Group(room.Code).SendAsync("AnswersSubmitted", new { PlayerId = player.Id, PlayerName = player.Name });
-            //await Clients.Caller.SendAsync("RoomUpdated", updatedRoom);
-            if (updatedRoom != null)
-            {
-                await Clients.Group(room.Code).SendAsync("RoomUpdated", updatedRoom);
-
-                var answersData = await _roomService.GetAnswersDataAsync(room.Code);
-                await Clients.Group(room.Code).SendAsync("VoteStarted", answersData);
-            }
+            await _roomService.SubmitAnswersAsync(room.Code, player.Id, request);
+            // await Clients.Group(room.Code).SendAsync("AnswersSubmitted", new { PlayerId = player.Id, PlayerName = player.Name });
         }
         catch (Exception ex)
         {

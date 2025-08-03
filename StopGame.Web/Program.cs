@@ -3,11 +3,15 @@ using Pomelo.EntityFrameworkCore.MySql;
 using StopGame.Application.Interfaces;
 using StopGame.Application.Services;
 using StopGame.Infrastructure.Data;
+using StopGame.Infrastructure.Scheduling;
 using StopGame.Infrastructure.Repositories;
 using StopGame.Infrastructure.Services;
 using StopGame.Web.Services;
 using StopGame.Web.Hubs;
 using StackExchange.Redis;
+using Hangfire;
+using Hangfire.Redis.StackExchange;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +40,17 @@ builder.Services.AddScoped<IRoomRepository, RedisRoomRepository>();
 builder.Services.AddScoped<IRoomService, RoomService>();
 builder.Services.AddScoped<ISignalRService, SignalRService>();
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<IAnswerSubmissionService, AnswerSubmissionService>();
+builder.Services.AddScoped<IAppJobScheduler, StopGame.Infrastructure.Scheduling.HangfireJobScheduler>();
+
+// Add Hangfire
+builder.Services.AddHangfire(config => config
+    .UseRedisStorage(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379", new RedisStorageOptions
+    {
+        Prefix = "hangfire:stopgame:"
+    }));
+
+builder.Services.AddHangfireServer();
 
 // Add CORS
 builder.Services.AddCors(options =>
@@ -68,6 +83,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<GameHub>("/gameHub");
+app.UseHangfireDashboard();
 
 // Ensure database is created and seeded
 using (var scope = app.Services.CreateScope())

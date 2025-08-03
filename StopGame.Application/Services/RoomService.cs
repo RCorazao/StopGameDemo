@@ -12,15 +12,18 @@ public class RoomService : IRoomService
     private readonly IRoomRepository _roomRepository;
     private readonly ITopicRepository _topicRepository;
     private readonly IChatService _chatService;
+    private readonly IAppJobScheduler _jobScheduler;
 
     public RoomService(
         IRoomRepository roomRepository,
         ITopicRepository topicRepository,
-        IChatService chatService)
+        IChatService chatService,
+        IAppJobScheduler jobScheduler)
     {
         _roomRepository = roomRepository;
         _topicRepository = topicRepository;
         _chatService = chatService;
+        _jobScheduler = jobScheduler;
     }
 
     public async Task<RoomDto> CreateRoomAsync(CreateRoomRequest request, string connectionId)
@@ -162,44 +165,10 @@ public class RoomService : IRoomService
         return MapToDto(updatedRoom);
     }
 
-    public async Task<RoomDto?> SubmitAnswersAsync(string roomCode, Guid playerId, SubmitAnswersRequest request)
+    public Task SubmitAnswersAsync(string roomCode, Guid playerId, SubmitAnswersRequest request)
     {
-        var room = await _roomRepository.GetByCodeAsync(roomCode);
-        if (room == null)
-            throw new InvalidOperationException("Room not found");
-
-        var currentRound = room.GetCurrentRound();
-        if (currentRound == null || !currentRound.IsActive)
-            throw new InvalidOperationException("No active round");
-
-        var player = room.GetPlayer(playerId);
-        if (player == null)
-            throw new InvalidOperationException("Player not found in room");
-
-        foreach (var answer in request.Answers)
-        {
-            var answerRecord = new Answer(){
-                PlayerId = playerId,
-                TopicId = Guid.Parse(answer.Key),
-                TopicName = room.GetTopicById(Guid.Parse(answer.Key))?.Name ?? string.Empty,
-                Value = answer.Value,
-            };
-
-            currentRound.AddAnswer(answerRecord);
-        }
-
-        player.MarkAnswerSubmitted();
-
-        if (room.HasPlayersSubmittedAnswers())
-        {
-            room.EndCurrentRound();
-            room.InitializeVotes();
-            var updatedRoom = await _roomRepository.UpdateAsync(room);
-            return MapToDto(updatedRoom);
-        }
-
-        await _roomRepository.UpdateAsync(room);
-        return null;
+        _jobScheduler.Enqueue<IAnswerSubmissionService>(x => x.ProcessAnswersAsync(roomCode, playerId, request));
+        return Task.CompletedTask;
     }
 
     public async Task StopRoundAsync(string roomCode, Guid playerId)

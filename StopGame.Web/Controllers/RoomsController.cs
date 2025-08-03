@@ -105,8 +105,8 @@ public class RoomsController : ControllerBase
     {
         try
         {
-            var room = await _roomService.SubmitAnswersAsync(roomCode, request.PlayerId, request.SubmitAnswersRequest);
-            return Ok(room);
+            // var room = await _roomService.SubmitAnswersAsync(roomCode, request.PlayerId, request.SubmitAnswersRequest);
+            return Ok();
         }
         catch (Exception ex)
         {
