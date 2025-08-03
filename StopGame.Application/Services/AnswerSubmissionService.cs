@@ -10,52 +10,64 @@ public class AnswerSubmissionService : IAnswerSubmissionService
 {
     private readonly IRoomRepository _roomRepository;
     private readonly ISignalRService _signalRService;
+    private readonly IDistributedLockService _lockService;
 
-    public AnswerSubmissionService(IRoomRepository roomRepository, ISignalRService signalRService)
+    public AnswerSubmissionService(IRoomRepository roomRepository, ISignalRService signalRService, IDistributedLockService lockService)
     {
         _roomRepository = roomRepository;
         _signalRService = signalRService;
+        _lockService = lockService;
     }
 
     public async Task ProcessAnswersAsync(string roomCode, Guid playerId, SubmitAnswersRequest request)
     {
-        var room = await _roomRepository.GetByCodeAsync(roomCode);
-        if (room == null) return;
-
-        var currentRound = room.GetCurrentRound();
-        if (currentRound == null || !currentRound.IsActive) return;
-
-        var player = room.GetPlayer(playerId);
-        if (player == null) return;
-
-        foreach (var answer in request.Answers)
+        var lockKey = $"room:lock:{roomCode}";
+        using (var roomLock = await _lockService.AcquireLockAsync(lockKey, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(1)))
         {
-            var answerRecord = new Answer()
+            if (roomLock == null)
             {
-                PlayerId = playerId,
-                TopicId = Guid.Parse(answer.Key),
-                TopicName = room.GetTopicById(Guid.Parse(answer.Key))?.Name ?? string.Empty,
-                Value = answer.Value,
-            };
+                // Could not acquire lock, skip or handle as needed
+                return;
+            }
 
-            currentRound.AddAnswer(answerRecord);
-        }
+            var room = await _roomRepository.GetByCodeAsync(roomCode);
+            if (room == null) return;
 
-        player.MarkAnswerSubmitted();
+            var currentRound = room.GetCurrentRound();
+            if (currentRound == null || !currentRound.IsActive) return;
 
-        if (room.HasPlayersSubmittedAnswers())
-        {
-            room.EndCurrentRound();
-            room.InitializeVotes();
-            var updatedRoom = await _roomRepository.UpdateAsync(room);
-            await _signalRService.SendToGroupAsync(roomCode, "RoomUpdated", updatedRoom);
+            var player = room.GetPlayer(playerId);
+            if (player == null) return;
 
-            var answersData = await GetAnswersDataAsync(roomCode);
-            await _signalRService.SendToGroupAsync(roomCode, "VoteStarted", answersData);
-        }
-        else
-        {
-            await _roomRepository.UpdateAsync(room);
+            foreach (var answer in request.Answers)
+            {
+                var answerRecord = new Answer()
+                {
+                    PlayerId = playerId,
+                    TopicId = Guid.Parse(answer.Key),
+                    TopicName = room.GetTopicById(Guid.Parse(answer.Key))?.Name ?? string.Empty,
+                    Value = answer.Value,
+                };
+
+                currentRound.AddAnswer(answerRecord);
+            }
+
+            player.MarkAnswerSubmitted();
+
+            if (room.HasPlayersSubmittedAnswers())
+            {
+                room.EndCurrentRound();
+                room.InitializeVotes();
+                var updatedRoom = await _roomRepository.UpdateAsync(room);
+                await _signalRService.SendToGroupAsync(roomCode, "RoomUpdated", updatedRoom);
+
+                var answersData = await GetAnswersDataAsync(roomCode);
+                await _signalRService.SendToGroupAsync(roomCode, "VoteStarted", answersData);
+            }
+            else
+            {
+                await _roomRepository.UpdateAsync(room);
+            }
         }
     }
 

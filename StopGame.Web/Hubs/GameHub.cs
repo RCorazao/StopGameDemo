@@ -235,7 +235,7 @@ public class GameHub : Hub
 
             var updatedRoom = await _roomService.FinishVotingPhase(room.Code, player.Id);
 
-            await Clients.Group(room.Code).SendAsync("VotingFinished", updatedRoom);
+            await Clients.Group(room.Code).SendAsync("RoomUpdated", updatedRoom);
         }
         catch (Exception ex)
         {
@@ -243,30 +243,36 @@ public class GameHub : Hub
         }
     }
 
-    public async Task GetVotingData()
+    public async Task GetVoteData()
     {
-        // try
-        // {
-        //     var room = await _roomService.GetRoomByConnectionIdAsync(Context.ConnectionId);
-        //     if (room == null)
-        //     {
-        //         await Clients.Caller.SendAsync("Error", "Room not found");
-        //         return;
-        //     }
+        try
+        {
+            var room = await _roomService.GetRoomByConnectionIdAsync(Context.ConnectionId);
+            if (room == null)
+            {
+                await Clients.Caller.SendAsync("Error", "Room not found");
+                return;
+            }
 
-        //     if (room.State != Domain.Enums.RoomState.Voting)
-        //     {
-        //         await Clients.Caller.SendAsync("Error", "Not in voting phase");
-        //         return;
-        //     }
+            if (room.State != Domain.Enums.RoomState.Voting)
+            {
+                await Clients.Caller.SendAsync("Error", "Not in voting phase");
+                return;
+            }
 
-        //     var votingData = await _roomService.GetVotingDataAsync(room.Code);
-        //     await Clients.Caller.SendAsync("VotingData", votingData);
-        // }
-        // catch (Exception ex)
-        // {
-        //     await Clients.Caller.SendAsync("Error", ex.Message);
-        // }
+            while (!room!.HasPlayersSubmittedAnswers)
+            {
+                await Task.Delay(500); // Wait for answers to be submitted
+                room = await _roomService.GetRoomAsync(room.Code);
+            }
+
+            var votingData = await _roomService.GetAnswersDataAsync(room.Code);
+            await Clients.Caller.SendAsync("VoteStarted", votingData);
+        }
+        catch (Exception ex)
+        {
+            await Clients.Caller.SendAsync("Error", ex.Message);
+        }
     }
 
     public async Task LeaveRoom()

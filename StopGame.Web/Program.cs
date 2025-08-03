@@ -11,6 +11,7 @@ using StopGame.Web.Hubs;
 using StackExchange.Redis;
 using Hangfire;
 using Hangfire.Redis.StackExchange;
+using StopGame.Infrastructure.DependencyInjection;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -31,6 +32,9 @@ builder.Services.AddDbContext<StopGameDbContext>(options =>
 // Add Redis
 builder.Services.AddSingleton<IConnectionMultiplexer>(provider =>
     ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379"));
+
+// Add distributed lock service from Infrastructure
+builder.Services.AddInfrastructureLocks(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379");
 
 // Register repositories
 builder.Services.AddScoped<ITopicRepository, TopicRepository>();

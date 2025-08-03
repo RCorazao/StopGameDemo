@@ -18,4 +18,5 @@ public class RoomDto
     public int VotingDurationSeconds { get; set; }
     public int MaxRounds { get; set; }
     public RoundDto? CurrentRound { get; set; }
+    public bool HasPlayersSubmittedAnswers { get; set; }
 }

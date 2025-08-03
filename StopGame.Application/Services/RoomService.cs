@@ -327,7 +327,8 @@ public class RoomService : IRoomService
             RoundDurationSeconds = room.RoundDurationSeconds,
             VotingDurationSeconds = room.VotingDurationSeconds,
             MaxRounds = room.MaxRounds,
-            CurrentRound = room.GetCurrentRound() != null ? MapRoundToDto(room, room.GetCurrentRound()!) : null
+            CurrentRound = room.GetCurrentRound() != null ? MapRoundToDto(room, room.GetCurrentRound()!) : null,
+            HasPlayersSubmittedAnswers = room.HasPlayersSubmittedAnswers()
         };
     }
 
