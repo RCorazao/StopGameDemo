@@ -179,7 +179,7 @@ public class RoomService : IRoomService
         var updatedRoom = await _roomRepository.UpdateAsync(room);
         
         var currentRound = room.GetCurrentRound()!;
-        await _chatService.NotifyRoundStartedAsync(room.Code, currentRound.Letter, room.RoundDurationSeconds);
+        await _chatService.NotifyRoundStartedAsync(room.Code, currentRound.Letter);
         
         return RoomMappings.MapToDto(updatedRoom);
     }
@@ -207,8 +207,7 @@ public class RoomService : IRoomService
         //room.EndCurrentRound();
         //var updatedRoom = await _roomRepository.UpdateAsync(room);
         
-        await _chatService.NotifyRoundEndedAsync(room.Code);
-        await _chatService.NotifyVotingStartedAsync(room.Code, room.VotingDurationSeconds);
+        await _chatService.NotifyVotingStartedAsync(room.Code);
         
         //return RoomMappings.MapToDto(updatedRoom);
     }
@@ -296,7 +295,6 @@ public class RoomService : IRoomService
         room.EndVoting();
 
         var updatedRoom = await _roomRepository.UpdateAsync(room);
-        await _chatService.NotifyVotingEndedAsync(room.Code);
 
         return RoomMappings.MapToDto(updatedRoom);
     }

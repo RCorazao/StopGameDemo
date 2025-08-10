@@ -1,3 +1,4 @@
+using StopGame.Application.DTOs;
 using StopGame.Application.Interfaces;
 
 namespace StopGame.Infrastructure.Services;
@@ -11,116 +12,74 @@ public class ChatService : IChatService
         _signalRService = signalRService;
     }
 
-    public async Task SendMessageToRoomAsync(string roomCode, Guid playerId, string message)
+    public async Task SendMessageToRoomAsync(string roomCode, PlayerDto player, string message)
     {
-        await _signalRService.SendToGroupAsync(roomCode, "ChatMessage", new
+        await _signalRService.SendToGroupAsync(roomCode, "ChatNotification", new
         {
-            PlayerId = playerId,
+            Player = player,
             Message = message,
-            Timestamp = DateTime.UtcNow
+            Timestamp = DateTime.UtcNow,
+            Source = "Player"
         });
     }
 
     public async Task NotifyPlayerJoinedAsync(string roomCode, string playerName)
     {
-        await _signalRService.SendToGroupAsync(roomCode, "PlayerJoined", new
+        await _signalRService.SendToGroupAsync(roomCode, "ChatNotification", new
         {
-            PlayerName = playerName,
-            Timestamp = DateTime.UtcNow
+            Message = $"<< {playerName} >> joined the room",
+            Timestamp = DateTime.UtcNow,
+            Source = "System"
         });
     }
 
     public async Task NotifyPlayerLeftAsync(string roomCode, string playerName)
     {
-        await _signalRService.SendToGroupAsync(roomCode, "PlayerLeft", new
+        await _signalRService.SendToGroupAsync(roomCode, "ChatNotification", new
         {
-            PlayerName = playerName,
-            Timestamp = DateTime.UtcNow
+            Message = $"<< {playerName} >> left the room",
+            Timestamp = DateTime.UtcNow,
+            Source = "System"
         });
     }
 
-    public async Task NotifyRoundStartedAsync(string roomCode, char letter, int durationSeconds)
+    public async Task NotifyRoundStartedAsync(string roomCode, char letter)
     {
-        await _signalRService.SendToGroupAsync(roomCode, "RoundStartedNotification", new
+        await _signalRService.SendToGroupAsync(roomCode, "ChatNotification", new
         {
-            Letter = letter,
             Message = $"Round started! Letter: {letter}",
-            DurationSeconds = durationSeconds,
-            Timestamp = DateTime.UtcNow
+            Timestamp = DateTime.UtcNow,
+            Source = "System"
         });
     }
 
-    public async Task NotifyRoundEndedAsync(string roomCode)
+    public async Task NotifyVotingStartedAsync(string roomCode)
     {
-        await _signalRService.SendToGroupAsync(roomCode, "RoundEndedNotification", new
-        {
-            Message = "Round ended! Time to vote!",
-            Timestamp = DateTime.UtcNow
-        });
-    }
-
-    public async Task NotifyVotingStartedAsync(string roomCode, int durationSeconds)
-    {
-        await _signalRService.SendToGroupAsync(roomCode, "VotingStartedNotification", new
+        await _signalRService.SendToGroupAsync(roomCode, "ChatNotification", new
         {
             Message = "Voting phase started!",
-            DurationSeconds = durationSeconds,
-            Timestamp = DateTime.UtcNow
-        });
-    }
-
-    public async Task NotifyVotingEndedAsync(string roomCode)
-    {
-        await _signalRService.SendToGroupAsync(roomCode, "VotingEndedNotification", new
-        {
-            Message = "Voting ended! Check the results!",
-            Timestamp = DateTime.UtcNow
+            Timestamp = DateTime.UtcNow,
+            Source = "System"
         });
     }
 
     public async Task NotifyGameEndedAsync(string roomCode, string winnerName)
     {
-        await _signalRService.SendToGroupAsync(roomCode, "GameEndedNotification", new
+        await _signalRService.SendToGroupAsync(roomCode, "ChatNotification", new
         {
-            WinnerName = winnerName,
             Message = $"Game ended! Winner: {winnerName}",
-            Timestamp = DateTime.UtcNow
+            Timestamp = DateTime.UtcNow,
+            Source = "System"
         });
     }
 
     public async Task NotifyPlayerStoppedAsync(string roomCode, string playerName)
     {
-        await _signalRService.SendToGroupAsync(roomCode, "PlayerStoppedNotification", new
+        await _signalRService.SendToGroupAsync(roomCode, "ChatNotification", new
         {
-            PlayerName = playerName,
             Message = $"{playerName} stopped the round!",
-            Timestamp = DateTime.UtcNow
-        });
-    }
-
-    public async Task SendSystemMessageAsync(string roomCode, string message)
-    {
-        await _signalRService.SendToGroupAsync(roomCode, "SystemMessage", new
-        {
-            Message = message,
-            Timestamp = DateTime.UtcNow
-        });
-    }
-
-    public async Task SendSystemMessageToRoomAsync(string roomCode, string message)
-    {
-        await SendSystemMessageAsync(roomCode, message);
-    }
-
-    public async Task NotifyGameFinishedAsync(string roomCode, List<StopGame.Application.DTOs.PlayerDto> finalScores)
-    {
-        var winner = finalScores.FirstOrDefault();
-        await _signalRService.SendToGroupAsync(roomCode, "GameFinishedNotification", new
-        {
-            FinalScores = finalScores,
-            Winner = winner?.Name,
-            Message = winner != null ? $"Game finished! Winner: {winner.Name}" : "Game finished!",
-            Timestamp = DateTime.UtcNow
+            Timestamp = DateTime.UtcNow,
+            Source = "System"
         });
     }
 }

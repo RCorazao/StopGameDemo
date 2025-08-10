@@ -112,7 +112,7 @@ public class GameHub : Hub
                 return;
             }
 
-            await _chatService.SendMessageToRoomAsync(room.Code, player.Id, message);
+            await _chatService.SendMessageToRoomAsync(room.Code, player, message);
         }
         catch (Exception ex)
         {
