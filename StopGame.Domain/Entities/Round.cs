@@ -1,4 +1,3 @@
-using StopGame.Domain.ValueObjects;
 
 namespace StopGame.Domain.Entities;
 
@@ -14,15 +13,15 @@ public class Round
     public Round()
     {
         Id = Guid.NewGuid();
-        Letter = GenerateRandomLetter();
+        //Letter = GenerateRandomLetter();
         StartedAt = DateTime.UtcNow;
     }
     
-    private static char GenerateRandomLetter()
+    public void GenerateRandomLetter(string letters)
     {
-        const string letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        //const string letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         var random = new Random();
-        return letters[random.Next(letters.Length)];
+        Letter = letters[random.Next(letters.Length)];
     }
     
     public void EndRound()

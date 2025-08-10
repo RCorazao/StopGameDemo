@@ -35,7 +35,7 @@ public class Room
             .Select(s => s[random.Next(s.Length)]).ToArray());
     }
     
-    public bool CanJoin() => Players.Count < MaxPlayers && State == RoomState.Waiting;
+    public bool CanJoin() => Players.Count(p => p.IsConnected) < MaxPlayers && State == RoomState.Waiting;
     
     public bool IsHost(Guid userId) => HostUserId == userId;
     
@@ -57,12 +57,12 @@ public class Room
         var player = GetPlayer(playerId);
         if (player != null)
         {
-            Players.Remove(player);
-            
+            player.Disconnect();
+
             // If host leaves, assign new host or close room
-            if (IsHost(playerId) && Players.Any())
+            if (IsHost(playerId) && Players.Any(p => p.IsConnected))
             {
-                HostUserId = Players.First().Id;
+                HostUserId = Players.First(p => p.IsConnected).Id;
             }
         }
     }
@@ -76,6 +76,13 @@ public class Room
         if (CanStartNewRound())
         {
             var round = new Round();
+
+            const string letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            var usedLetters = Rounds.Select(r => r.Letter).ToHashSet();
+            var availableLetters = letters.Where(c => !usedLetters.Contains(c)).ToArray();
+
+            round.GenerateRandomLetter(new string(availableLetters));
+
             Rounds.Add(round);
             State = RoomState.Playing;
         }

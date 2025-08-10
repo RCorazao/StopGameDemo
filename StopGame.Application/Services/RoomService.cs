@@ -88,6 +88,24 @@ public class RoomService : IRoomService
         return RoomMappings.MapToDto(updatedRoom);
     }
 
+    public async Task<RoomDto> ReconnectRoom(ReconnectRoomRequest request, string connectionId)
+    {
+        var room = await _roomRepository.GetByCodeAsync(request.RoomCode);
+        if (room == null)
+            throw new InvalidOperationException("Room not found");
+
+        var player = room.GetPlayer(request.PlayerId);
+        if (player == null)
+            throw new InvalidOperationException("Player not found in room");
+
+        player.UpdateConnectionId(connectionId);
+        var updatedRoom = await _roomRepository.UpdateAsync(room);
+
+        await _chatService.NotifyPlayerJoinedAsync(updatedRoom.Code, player.Name);
+
+        return RoomMappings.MapToDto(updatedRoom);
+    }
+
     public async Task<RoomDto> UpdateRoomSettings(string roomCode , UpdateRoomSettingsRequest request)
     {
         var room = await _roomRepository.GetByCodeAsync(roomCode);
@@ -133,7 +151,7 @@ public class RoomService : IRoomService
         var playerName = player.Name;
         room.RemovePlayer(player.Id);
 
-        if (room.Players.Any())
+        if (room.Players.Any(p => p.IsConnected))
         {
             await _roomRepository.UpdateAsync(room);
             await _chatService.NotifyPlayerLeftAsync(room.Code, playerName);

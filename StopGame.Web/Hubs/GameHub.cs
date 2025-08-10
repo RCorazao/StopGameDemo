@@ -46,6 +46,22 @@ public class GameHub : Hub
         }
     }
 
+    public async Task ReconnectRoom(ReconnectRoomRequest request)
+    {
+        try
+        {
+            var room = await _roomService.ReconnectRoom(request, Context.ConnectionId);
+            await Groups.AddToGroupAsync(Context.ConnectionId, room.Code);
+            var currentPlayer = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
+            await Clients.Caller.SendAsync("RoomJoined", room, currentPlayer);
+            await Clients.Group(room.Code).SendAsync("RoomUpdated", room);
+        }
+        catch (Exception ex)
+        {
+            await Clients.Caller.SendAsync("Error", ex.Message);
+        }
+    }
+
     public async Task GetCurrentRoom()
     {
         try

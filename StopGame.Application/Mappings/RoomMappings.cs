@@ -18,7 +18,7 @@ namespace StopGame.Application.Mappings
                 Code = room.Code,
                 HostUserId = room.HostUserId,
                 Topics = room.Topics.Select(MapTopicToDto).ToList(),
-                Players = room.Players.Select(p => MapPlayerToDto(p, room.IsHost(p.Id))).ToList(),
+                Players = room.Players.Where(p => p.IsConnected).Select(p => MapPlayerToDto(p, room.IsHost(p.Id))).ToList(),
                 State = room.State,
                 Rounds = room.Rounds.Select(r => MapRoundToDto(room, r)).ToList(),
                 CreatedAt = room.CreatedAt,
