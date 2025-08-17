@@ -67,10 +67,14 @@ public class RoomService : IRoomService
         if (room == null)
             throw new InvalidOperationException("Room not found");
 
-        var exists = room.Players.Exists(p => p.ConnectionId == connectionId);
+        var player = room.Players.FirstOrDefault(p => p.ConnectionId == connectionId);
+        Room updatedRoom;
 
-        if (exists)
+        if (player is not null)
         {
+            player.Name = request.PlayerName;
+            player.IsConnected = true;
+            updatedRoom = await _roomRepository.UpdateAsync(room);
             await _chatService.NotifyPlayerJoinedAsync(room.Code, request.PlayerName);
             return RoomMappings.MapToDto(room);
         }
@@ -78,10 +82,10 @@ public class RoomService : IRoomService
         if (!room.CanJoin())
             throw new InvalidOperationException("Cannot join room");
 
-        var player = new Player(request.PlayerName, connectionId);
+        player = new Player(request.PlayerName, connectionId);
         room.AddPlayer(player);
 
-        var updatedRoom = await _roomRepository.UpdateAsync(room);
+        updatedRoom = await _roomRepository.UpdateAsync(room);
         
         await _chatService.NotifyPlayerJoinedAsync(room.Code, request.PlayerName);
         
