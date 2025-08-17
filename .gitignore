@@ -371,3 +371,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Mysql data
+/mysql-data

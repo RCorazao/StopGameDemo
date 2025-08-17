@@ -9,13 +9,13 @@ services:
       - "8080:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=Server=mysql;Port=3306;Database=stopgamedb;User=root;Password=${MYSQL_ROOT_PASSWORD};SslMode=none
-      - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__DefaultConnection=Server=mysql;Port=3306;Database=stopgamedb;User=appuser;Password=${MYSQL_PASSWORD};SslMode=none
+      - ConnectionStrings__Redis=redis:6379,abortConnect=false,connectRetry=5,connectTimeout=5000,syncTimeout=5000
     depends_on:
       mysql:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
 
   mysql:
@@ -23,10 +23,12 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: stopgamedb
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
-      - mysql-data:/var/lib/mysql
+      - ./mysql-data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
       interval: 10s
@@ -35,7 +37,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:latest
+    image: redis:7.2
     ports:
       - "6379:6379"
     volumes:
