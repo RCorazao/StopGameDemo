@@ -13,6 +13,10 @@ RUN dotnet restore
 # Copy the rest of the application source code
 COPY . .
 
+RUN if [ ! -f StopGame.Web/appsettings.Production.json ]; then \
+        cp StopGame.Web/appsettings.json StopGame.Web/appsettings.Production.json; \
+    fi
+
 # Publish the application
 WORKDIR /app/StopGame.Web
 RUN dotnet publish -c Release -o /app/publish
