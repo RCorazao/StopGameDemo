@@ -57,7 +57,11 @@ builder.Services.AddHangfire(config => config
 builder.Services.AddHangfireServer();
 
 // Add CORS
-var allowedOrigins = builder.Configuration.GetSection("CORS:AllowedOrigins").Get<string[]>() ?? new string[] { };
+var corsOriginsRaw = builder.Configuration["CORS:AllowedOrigins"];
+var allowedOrigins = corsOriginsRaw?
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    ?? Array.Empty<string>();
+    
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
