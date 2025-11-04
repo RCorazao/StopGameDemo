@@ -63,7 +63,7 @@ public class RoomService : IRoomService
 
     public async Task<RoomDto> JoinRoomAsync(JoinRoomRequest request, string connectionId)
     {
-        var room = await _roomRepository.GetByCodeAsync(request.RoomCode);
+        var room = await _roomRepository.GetByCodeAsync(request.RoomCode.ToUpper());
         if (room == null)
             throw new InvalidOperationException("Room not found");
 
